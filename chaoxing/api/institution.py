@@ -29,7 +29,7 @@ async def fetch_institution(client: httpx.AsyncClient, hostname: str) -> Institu
     result = data["data"]
     institution_data = result["libCode"][0]
     return Institution(
-        id=institution_data["groupCode"],
+        id=int(institution_data["groupCode"]),
         name=institution_data["name"],
         hostname=hostname,
         doc_codes=[doc_code["code"] for doc_code in result["docCode"]],

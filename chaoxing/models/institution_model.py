@@ -5,7 +5,7 @@ from chaoxing.utils import between
 class Institution(BaseModel):
     """Represents institution metadata returned by the LibSP API."""
 
-    id: str
+    id: int
     name: str
     hostname: str
     doc_codes: list[str]
@@ -27,7 +27,7 @@ class InstitutionCreate(BaseModel):
     Fields containing multiple values are stored as comma-separated strings.
     """
 
-    id: str
+    id: int
     abbrv: str
     name: str
     doc_codes: str
