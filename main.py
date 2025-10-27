@@ -130,11 +130,11 @@ async def main() -> None:
         )
 
         total_pages = math.ceil(total_records / page_size)
-        total_scraped = await get_scraped_count(db_session, institution.abbrv)
-        remaining_pages = total_pages - total_scraped
+        total_scraped_pages = await get_scraped_count(db_session, institution.abbrv)
+        remaining_pages = total_pages - total_scraped_pages
         start_page = await get_start_page(db_session, institution.abbrv)
 
-        if total_scraped >= total_pages:
+        if remaining_pages <= 0:
             logger.info(f"All pages already scraped for {institution.abbrv}.")
             return
 
