@@ -27,7 +27,7 @@ class Institution(Base):
     __tablename__ = "institution"
 
     id: Mapped[str] = mapped_column(Integer, primary_key=True)
-    abbrv: Mapped[str] = mapped_column(String, nullable=False)
+    abbrv: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     doc_codes: Mapped[str] = mapped_column(Text, nullable=False)
     resource_types: Mapped[str] = mapped_column(Text, nullable=False)
