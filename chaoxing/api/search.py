@@ -35,7 +35,7 @@ async def search_libsp(client: httpx.AsyncClient, params: SearchParams) -> Searc
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:144.0) Gecko/20100101 Firefox/144.0",
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json;charset=utf-8",
-        "Groupcode": params.institution_id,
+        "Groupcode": str(params.institution_id),
         "Origin": base_url,
         "Referer": f"{base_url}/"
     }
