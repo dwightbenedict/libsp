@@ -46,7 +46,7 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
         year_published=item["publishYear"],
         volume=item["vol"],
         issue=item["issue"],
-        isbns=", ".join(isbns) if isbns is not None else None,
+        isbns=", ".join(isbns) if isinstance(isbns, list) else isbns,
         language=item["langCode"],
         country=item["countryCode"],
         has_ecopy=bool(item["eCount"]),
