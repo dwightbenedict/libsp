@@ -20,7 +20,7 @@ async def is_page_scraped(session: AsyncSession, institution_abbrv: str, page_nu
 async def mark_page_scraped(session: AsyncSession, institution_abbrv: str, page_num: int) -> None:
     stmt = (
         insert(Progress)
-        .values(institution_abbrv=institution_abbrv, page_num=page_num, completed=True)
+        .values(institution_abbrv=institution_abbrv, page_num=page_num, scraped=True)
         .on_conflict_do_update(
             index_elements=["institution_abbrv", "page_num"],
             set_={"scraped": True}
