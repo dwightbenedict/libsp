@@ -1,4 +1,4 @@
-from sqlalchemy import exists, select, func, text
+from sqlalchemy import exists, select, func, text, bindparam, BigInteger, String
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,21 +67,26 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
 
     stmt = text("""
         SELECT gs.page
-        FROM generate_series(:start_val::BIGINT, :end_val::BIGINT) AS gs(page)
+        FROM generate_series(:start_val, :end_val) AS gs(page)
         LEFT OUTER JOIN progress 
             ON progress.institution_abbrv = :abbrv
             AND progress.page_num = gs.page
             AND progress.scraped IS true
         WHERE progress.page_num IS NULL
         ORDER BY gs.page
-        LIMIT :limit_int
-    """)
+        LIMIT :limit
+    """).bindparams(
+        bindparam("start_val", type_=BigInteger),
+        bindparam("end_val", type_=BigInteger),
+        bindparam("abbrv", type_=String),
+        bindparam("limit", type_=BigInteger),
+    )
 
     params = {
         "start_val": 1,
         "end_val": max_page + 1,
         "abbrv": institution_abbrv,
-        "limit_int": 1,
+        "limit": 1,
     }
 
     result = await session.execute(stmt, params)
