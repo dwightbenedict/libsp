@@ -54,7 +54,7 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
     max_page = await _get_max_scraped_page(session, institution_abbrv)
 
     if max_page == 0:
-        return 1  # no records yet → start from page 1
+        return 1
 
     stmt = text("""
         SELECT gs.page
@@ -67,6 +67,15 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
         ORDER BY gs.page
         LIMIT :limit
     """)
-    result = await session.execute(stmt)
+
+    params = {
+        "start": 1,
+        "end": max_page + 1,
+        "abbrv": institution_abbrv,
+        "limit": 1,
+    }
+
+    result = await session.execute(stmt, params)
     first_gap = result.scalar_one_or_none()
+
     return first_gap or (max_page + 1)
