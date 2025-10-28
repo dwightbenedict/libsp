@@ -58,21 +58,21 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
 
     stmt = text("""
         SELECT gs.page
-        FROM generate_series(:start::INTEGER, :end::INTEGER) AS gs(page)
+        FROM generate_series(:start_int, :end_int) AS gs(page)
         LEFT OUTER JOIN progress 
-            ON progress.institution_abbrv = :abbrv::VARCHAR
+            ON progress.institution_abbrv = :abbrv
             AND progress.page_num = gs.page
             AND progress.scraped IS true
         WHERE progress.page_num IS NULL
         ORDER BY gs.page
-        LIMIT :limit
+        LIMIT :limit_int
     """)
 
     params = {
-        "start": 1,
-        "end": max_page + 1,
+        "start_int": 1,
+        "end_int": max_page + 1,
         "abbrv": institution_abbrv,
-        "limit": 1,
+        "limit_int": 1,
     }
 
     result = await session.execute(stmt, params)
