@@ -9,7 +9,7 @@ from chaoxing.models.search_model import SearchResult
 @dataclass
 class SearchParams:
     institution_abbrv: str
-    institution_id: str
+    institution_id: int
     doc_codes: list[str]
     query: str = "*"
     resource_types: list[str] = field(default_factory=lambda: ["1", "2", "3"])

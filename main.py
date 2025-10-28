@@ -44,7 +44,7 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
         year_published=item["publishYear"],
         volume=item["vol"],
         issue=item["issue"],
-        isbns=", ".join(item["isbn"]),
+        isbns=", ".join(item["isbns"]),
         language=item["langCode"],
         country=item["countryCode"],
         has_ecopy=bool(item["eCount"]),
@@ -95,7 +95,7 @@ async def main() -> None:
     ):
         institution = await fetch_institution(client, institution_hostname)
 
-        institution_data = await get_institution(db_session, institution.id)
+        institution_data = await get_institution(db_session, institution.abbrv)
         if institution_data is None:
             institution_data = InstitutionCreate(
                 id=institution.id,
