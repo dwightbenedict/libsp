@@ -35,6 +35,7 @@ logger = logging.getLogger("chaoxing")
 
 
 def parse_record(item: dict[str, Any]) -> RecordCreate:
+    isbns = item["isbns"]
     return RecordCreate(
         id=item["recordId"],
         title=item["title"],
@@ -44,7 +45,7 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
         year_published=item["publishYear"],
         volume=item["vol"],
         issue=item["issue"],
-        isbns=", ".join(item["isbns"]),
+        isbns=", ".join(isbns) if isbns is not None else None,
         language=item["langCode"],
         country=item["countryCode"],
         has_ecopy=bool(item["eCount"]),
