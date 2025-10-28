@@ -95,7 +95,7 @@ async def main() -> None:
     ):
         institution = await fetch_institution(client, institution_hostname)
 
-        institution_data = await get_institution(db_session, institution.abbrv)
+        institution_data = await get_institution(db_session, institution.id)
         if institution_data is None:
             institution_data = InstitutionCreate(
                 id=institution.id,
