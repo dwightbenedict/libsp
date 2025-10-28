@@ -56,22 +56,17 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
     if max_page == 0:
         return 1  # no records yet → start from page 1
 
-    gs = func.generate_series(1, max_page).table_valued("page").alias("gs")
-
-    stmt = (
-        select(gs.c.page)
-        .select_from(
-            gs.outerjoin(
-                Progress,
-                (Progress.institution_abbrv == institution_abbrv)
-                & (Progress.page_num == gs.c.page)
-                & (Progress.scraped.is_(True)),
-            )
-        )
-        .where(Progress.page_num.is_(None))
-        .order_by(gs.c.page)
-        .limit(1)
-    )
+    stmt = text("""
+        SELECT gs.page
+        FROM generate_series(:start::INTEGER, :end::INTEGER) AS gs(page)
+        LEFT OUTER JOIN progress 
+            ON progress.institution_abbrv = :abbrv::VARCHAR
+            AND progress.page_num = gs.page
+            AND progress.scraped IS true
+        WHERE progress.page_num IS NULL
+        ORDER BY gs.page
+        LIMIT :limit
+    """)
     result = await session.execute(stmt)
     first_gap = result.scalar_one_or_none()
     return first_gap or (max_page + 1)
