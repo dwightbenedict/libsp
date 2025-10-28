@@ -36,6 +36,7 @@ logger = logging.getLogger("chaoxing")
 
 def parse_record(item: dict[str, Any]) -> RecordCreate:
     isbns = item["isbns"]
+    tags = item["chiSubjectClass"]
     return RecordCreate(
         id=item["recordId"],
         title=item["title"],
@@ -53,7 +54,7 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
         doi=item["doi"],
         doc_type=item["docName"],
         subject=item["subjectWord"],
-        tags=", ".join(item["chiSubjectClass"]),
+        tags=", ".join(tags) if tags is not None else None,
     )
 
 
