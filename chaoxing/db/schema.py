@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Integer, Float, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Integer, BigInteger, Float, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -13,7 +13,7 @@ class Progress(Base):
         ForeignKey("institution.abbrv"),
         primary_key=True
     )
-    page_num: Mapped[int] = mapped_column(Integer, primary_key=True)
+    page_num: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     scraped: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),

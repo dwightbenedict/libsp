@@ -51,6 +51,15 @@ async def _get_max_scraped_page(session: AsyncSession, institution_abbrv: str) -
 
 
 async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
+    """
+        Find the first missing (unscraped) page for the given institution.
+
+        Uses PostgreSQL's `generate_series` to produce all page numbers up to the current
+        maximum, then left joins them with the `progress` table to detect any gaps in
+        scraped pages. Returns the first missing page, or the next page after the maximum
+        if no gaps exist.
+    """
+
     max_page = await _get_max_scraped_page(session, institution_abbrv)
 
     if max_page == 0:
@@ -58,7 +67,7 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
 
     stmt = text("""
         SELECT gs.page
-        FROM generate_series(:start_int, :end_int) AS gs(page)
+        FROM generate_series(:start_val::BIGINT, :end_val::BIGINT) AS gs(page)
         LEFT OUTER JOIN progress 
             ON progress.institution_abbrv = :abbrv
             AND progress.page_num = gs.page
@@ -69,8 +78,8 @@ async def get_start_page(session: AsyncSession, institution_abbrv: str) -> int:
     """)
 
     params = {
-        "start_int": 1,
-        "end_int": max_page + 1,
+        "start_val": 1,
+        "end_val": max_page + 1,
         "abbrv": institution_abbrv,
         "limit_int": 1,
     }
