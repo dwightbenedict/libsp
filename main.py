@@ -103,7 +103,8 @@ async def main() -> None:
             institution_id=institution.id,
             doc_codes=institution.doc_codes,
             resource_types=institution.resource_types,
-            page_size=config.max_page_size,
+            from_year=1700,
+            to_year=2025,
             count_only=True,
             match_all=True
         )
