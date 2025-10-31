@@ -22,9 +22,6 @@ from chaoxing.db.session import get_db_session
 
 from chaoxing.services.institution_service import get_institution, create_institution
 from chaoxing.services.record_service import create_records
-from chaoxing.services.progress_service import (
-    get_scraped_count, is_page_scraped, mark_page_scraped, get_start_page
-)
 
 from chaoxing.core.logging import setup_logging
 
@@ -63,12 +60,6 @@ async def scrape_page(
     base_params: SearchParams,
     page_num: int,
 ) -> None:
-    async with get_db_session() as db_conn:
-        already_done = await is_page_scraped(db_conn, base_params.institution_abbrv, page_num)
-        if already_done:
-            logger.debug(f"Skipping page {page_num}: already scraped.")
-            return
-
     try:
         params = base_params.copy(page_num=page_num)
         search_result = await search_libsp(client, params)
@@ -76,7 +67,6 @@ async def scrape_page(
 
         async with get_db_session() as db_conn:
             await create_records(db_conn, records)
-            await mark_page_scraped(db_conn, params.institution_abbrv, page_num)
     except Exception as e:
         logger.exception(f"Failed to scrape page {page_num} for {base_params.institution_abbrv}: {e}")
 
