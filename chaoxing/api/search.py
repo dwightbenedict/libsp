@@ -13,6 +13,8 @@ class SearchParams:
     doc_codes: list[str]
     query: str = "*"
     resource_types: list[str] = field(default_factory=lambda: ["1", "2", "3"])
+    from_year: int | None = None
+    to_year: int | None = None
     page_num: int = 1
     page_size: int = 50
     count_only: bool = False
@@ -43,6 +45,10 @@ async def search_libsp(client: httpx.AsyncClient, params: SearchParams) -> Searc
         "docCode": params.doc_codes,
         "searchFieldContent": params.query if not params.match_all else "*",
         "resourceType": params.resource_types,
+        "sortField": "issued_sort",
+        "sortClause": "asc",
+        "publishBegin": params.from_year,
+        "publishEnd": params.to_year,
         "page": params.page_num,
         "rows": params.page_size if not params.count_only else 0,
     }

@@ -1,5 +1,4 @@
 import asyncio
-import math
 import sys
 from typing import Any
 from pathlib import Path
@@ -22,9 +21,6 @@ from chaoxing.db.session import get_db_session
 
 from chaoxing.services.institution_service import get_institution, create_institution
 from chaoxing.services.record_service import create_records
-from chaoxing.services.progress_service import (
-    get_scraped_count, is_page_scraped, mark_page_scraped, get_start_page
-)
 
 from chaoxing.core.logging import setup_logging
 
@@ -63,12 +59,6 @@ async def scrape_page(
     base_params: SearchParams,
     page_num: int,
 ) -> None:
-    async with get_db_session() as db_conn:
-        already_done = await is_page_scraped(db_conn, base_params.institution_abbrv, page_num)
-        if already_done:
-            logger.debug(f"Skipping page {page_num}: already scraped.")
-            return
-
     try:
         params = base_params.copy(page_num=page_num)
         search_result = await search_libsp(client, params)
@@ -76,7 +66,6 @@ async def scrape_page(
 
         async with get_db_session() as db_conn:
             await create_records(db_conn, records)
-            await mark_page_scraped(db_conn, params.institution_abbrv, page_num)
     except Exception as e:
         logger.exception(f"Failed to scrape page {page_num} for {base_params.institution_abbrv}: {e}")
 
@@ -108,46 +97,19 @@ async def main() -> None:
             )
             await create_institution(db_session, institution_data)
 
-        count_params = SearchParams(
-            institution_abbrv=institution.abbrv,
-            institution_id=institution.id,
-            doc_codes=institution.doc_codes,
-            resource_types=institution.resource_types,
-            page_size=config.max_page_size,
-            count_only=True,
-            match_all=True
-        )
-        search_result = await search_libsp(client, count_params)
-
-        total_records = search_result.total_records
-
-        page_size = config.max_page_size
         search_params = SearchParams(
             institution_abbrv=institution.abbrv,
             institution_id=institution.id,
             doc_codes=institution.doc_codes,
             resource_types=institution.resource_types,
-            page_size=page_size,
+            from_year=1700,
+            to_year=2025,
             match_all=True
         )
 
-        total_pages = math.ceil(total_records / page_size)
-        total_scraped_pages = await get_scraped_count(db_session, institution.abbrv)
-        remaining_pages = total_pages - total_scraped_pages
-        start_page = await get_start_page(db_session, institution.abbrv)
-
-        if remaining_pages <= 0:
-            logger.info(f"All pages already scraped for {institution.abbrv}.")
-            return
-
-        logger.info(
-            f"Starting scrape for {institution.abbrv}"
-            f"({total_records:,} records, {total_pages} pages, starting from page {start_page}).)"
-        )
-
-        with tqdm(total=remaining_pages, desc=f"Scraping {institution.abbrv}", file=sys.stderr) as pbar:
+        with tqdm(total=200, desc=f"Scraping {institution.abbrv}", file=sys.stderr) as pbar:
             async with TaskPool(config.concurrency_limit, progress_callback=pbar.update) as pool:
-                for page_num in range(start_page, total_pages + 1):
+                for page_num in range(1, 201):
                     await pool.submit(scrape_page, client, search_params, page_num)
                 await pool.join()
 
