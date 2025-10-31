@@ -117,6 +117,8 @@ async def main() -> None:
             institution_id=institution.id,
             doc_codes=institution.doc_codes,
             resource_types=institution.resource_types,
+            from_year=1700,
+            to_year=2025,
             match_all=True
         )
 
