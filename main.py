@@ -1,5 +1,4 @@
 import asyncio
-import math
 import sys
 from typing import Any
 from pathlib import Path
@@ -58,10 +57,15 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
 async def scrape_page(
     client: httpx.AsyncClient,
     base_params: SearchParams,
+    pub_year: int,
     page_num: int,
 ) -> None:
     try:
-        params = base_params.copy(page_num=page_num)
+        params = base_params.copy(
+            from_year=pub_year,
+            to_year=pub_year + 1,
+            page_num=page_num
+        )
         search_result = await search_libsp(client, params)
         records = [parse_record(item) for item in search_result.items]
 
@@ -98,35 +102,21 @@ async def main() -> None:
             )
             await create_institution(db_session, institution_data)
 
-        count_params = SearchParams(
-            institution_abbrv=institution.abbrv,
-            institution_id=institution.id,
-            doc_codes=institution.doc_codes,
-            resource_types=institution.resource_types,
-            from_year=1700,
-            to_year=2025,
-            count_only=True,
-            match_all=True
-        )
-        search_result = await search_libsp(client, count_params)
-
-        total_records = search_result.total_records
-        total_pages = math.ceil(total_records / config.max_page_size)
-
         search_params = SearchParams(
             institution_abbrv=institution.abbrv,
             institution_id=institution.id,
             doc_codes=institution.doc_codes,
             resource_types=institution.resource_types,
-            from_year=1700,
-            to_year=2025,
             match_all=True
         )
 
+        total_pages = 200
+
         with tqdm(total=total_pages, desc=f"Scraping {institution.abbrv}", file=sys.stderr) as pbar:
             async with TaskPool(config.concurrency_limit, progress_callback=pbar.update) as pool:
-                for page_num in range(1, total_pages + 1):
-                    await pool.submit(scrape_page, client, search_params, page_num)
+                for pub_year in range(1700, 2026):
+                    for page_num in range(1, total_pages + 1):
+                        await pool.submit(scrape_page, client, search_params, pub_year, page_num)
                 await pool.join()
 
         logger.info(f"Scrape completed for {institution.abbrv}")
