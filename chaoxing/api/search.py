@@ -10,18 +10,39 @@ from chaoxing.models.search_model import SearchResult
 class SearchParams:
     institution_abbrv: str
     institution_id: int
-    doc_codes: list[str]
     query: str = "*"
-    resource_types: list[str] = field(default_factory=lambda: ["1", "2", "3"])
-    from_year: int | None = None
-    to_year: int | None = None
-    page_num: int = 1
-    page_size: int = 50
+    page: int = 1
+    rows: int = 50
+    from_year: int = 1850
+    to_year: int = 2025
+    sort_field: str = "relevance"
+    sort_clause: str = "desc"
+    doc_codes: list[str] = field(default_factory=list)
+    resource_types: list[str] = field(default_factory=list)
+    lit_codes: list[str] = field(default_factory=list)
+    subjects: list[str] = field(default_factory=list)
+    authors: list[str] = field(default_factory=list)
+    publishers: list[str] = field(default_factory=list)
+    discodes: list[str] = field(default_factory=list)
+    lib_codes: list[str] = field(default_factory=list)
+    ecollection_ids: list[str] = field(default_factory=list)
+    core_include: list[str] = field(default_factory=list)
+    location_ids: list[str] = field(default_factory=list)
+    current_location_ids: list[str] = field(default_factory=list)
+    campus_ids: list[str] = field(default_factory=list)
+    kind_no: list[str] = field(default_factory=list)
+    groups: list[str] = field(default_factory=list)
+    lang_codes: list[str] = field(default_factory=list)
+    country_codes: list[str] = field(default_factory=list)
     count_only: bool = False
-    match_all: bool = False
+    match_all: bool = True
 
     def copy(self, **overrides):
         return replace(self, **overrides)
+
+
+class SearchError(Exception):
+    pass
 
 
 @retry(
@@ -42,20 +63,38 @@ async def search_libsp(client: httpx.AsyncClient, params: SearchParams) -> Searc
         "Referer": f"{base_url}/"
     }
     payload = {
-        "docCode": params.doc_codes,
         "searchFieldContent": params.query if not params.match_all else "*",
+        "page": params.page,
+        "rows": params.rows if not params.count_only else 0,
+        "sortField": params.sort_field,
+        "sortClause": params.sort_clause,
+        "docCode": params.doc_codes,
         "resourceType": params.resource_types,
-        "sortField": "issued_sort",
-        "sortClause": "asc",
-        "publishBegin": params.from_year,
-        "publishEnd": params.to_year,
-        "page": params.page_num,
-        "rows": params.page_size if not params.count_only else 0,
+        "litCode": params.lit_codes,
+        "author": params.authors,
+        "publisher": params.publishers,
+        "subject": params.subjects,
+        "discode1": params.discodes,
+        "libCode": params.lib_codes,
+        "locationId": params.location_ids,
+        "curLocationId": params.current_location_ids,
+        "campusId": params.campus_ids,
+        "neweCollectionIds": params.ecollection_ids,
+        "kindNo": params.kind_no,
+        "langCode": params.lang_codes,
+        "countryCode": params.country_codes,
+        "group": params.groups,
+        "newCoreInclude": params.core_include,
     }
     response = await client.post(url, headers=headers, json=payload)
     response.raise_for_status()
     data = response.json()
+
+    if not data["success"]:
+        raise SearchError(f"An error occured: {data['message']}")
+
     return SearchResult(
-        total_records=data["data"]["numFound"],
-        items=data["data"]["searchResult"]
+        count=data["data"]["numFound"],
+        items=data["data"]["searchResult"],
+        stats=data["data"]["facetResult"]
     )

@@ -13,7 +13,6 @@ class Config(BaseSettings):
     postgres_password: str
     postgres_db: str
     concurrency_limit: int = 10
-    max_page_size: int = 50
     debug: bool = False
     log_level: str = "INFO"
 

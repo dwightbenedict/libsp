@@ -6,7 +6,8 @@ from pydantic import BaseModel
 class SearchResult(BaseModel):
     """Schema representing a LibSP search response."""
 
-    total_records: int
+    count: int
     items: list[dict[str, Any]]
+    stats: dict[str, dict[str, int]]
 
 
