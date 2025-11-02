@@ -51,7 +51,7 @@ async def fetch_search_filters(
         "ecollection_ids": list(stats["neweCollectionIds"].keys()),
         "core_includes": list(stats["coreIncludes"].keys()),
         "location_ids": list(stats["locationId"].keys()),
-        "current_location_ids": list(stats["currentLocationId"].keys()),
+        "current_location_ids": list(stats["curLocationId"].keys()),
         "campus_ids": list(stats["campusId"].keys()),
         "kind_no": list(stats["kindNo"].keys()),
         "groups": list(stats["group"].keys()),
