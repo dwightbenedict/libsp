@@ -68,6 +68,8 @@ async def search_libsp(client: httpx.AsyncClient, params: SearchParams) -> Searc
         "rows": params.rows if not params.count_only else 0,
         "sortField": params.sort_field,
         "sortClause": params.sort_clause,
+        "publishBegin": params.from_year,
+        "publishEnd": params.to_year,
         "docCode": params.doc_codes,
         "resourceType": params.resource_types,
         "litCode": params.lit_codes,
