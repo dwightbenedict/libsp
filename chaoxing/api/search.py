@@ -26,7 +26,7 @@ class SearchParams:
     discodes: list[str] = field(default_factory=list)
     lib_codes: list[str] = field(default_factory=list)
     ecollection_ids: list[str] = field(default_factory=list)
-    core_include: list[str] = field(default_factory=list)
+    core_includes: list[str] = field(default_factory=list)
     location_ids: list[str] = field(default_factory=list)
     current_location_ids: list[str] = field(default_factory=list)
     campus_ids: list[str] = field(default_factory=list)

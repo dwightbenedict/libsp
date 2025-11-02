@@ -26,14 +26,37 @@ setup_logging(log_level=config.log_level, log_file=LOG_FILE)
 logger = logging.getLogger("chaoxing")
 
 
-async def fetch_search_filters(client: httpx.AsyncClient, institution_id: int, abbrv: str) -> dict[str, list[str]]:
-    params = SearchParams(institution_abbrv=abbrv, institution_id=institution_id, count_only=True)
+async def fetch_search_filters(
+    client: httpx.AsyncClient,
+    institution_id: int,
+    institution_abbrv: str
+) -> dict[str, list[str]]:
+    params = SearchParams(
+        institution_abbrv=institution_abbrv,
+        institution_id=institution_id,
+        count_only=True,
+    )
     result = await search_libsp(client, params)
     stats = result.stats
+
     return {
-        "publishers": list(stats.get("publisher", {}).keys()),
-        "lang_codes": list(stats.get("langCode", {}).keys()),
-        "country_codes": list(stats.get("countryCode", {}).keys()),
+        "doc_codes": list(stats["docCode"].keys()),
+        "resource_types": list(stats["resourceType"].keys()),
+        "lit_codes": list(stats["litCode"].keys()),
+        "subjects": list(stats["subject"].keys()),
+        "authors": list(stats["author"].keys()),
+        "publishers": list(stats["publisher"].keys()),
+        "discodes": list(stats["discode1"].keys()),
+        "lib_codes": list(stats["libcode"].keys()),
+        "ecollection_ids": list(stats["neweCollectionIds"].keys()),
+        "core_includes": list(stats["coreIncludes"].keys()),
+        "location_ids": list(stats["locationId"].keys()),
+        "current_location_ids": list(stats["currentLocationId"].keys()),
+        "campus_ids": list(stats["campusId"].keys()),
+        "kind_no": list(stats["kindNo"].keys()),
+        "groups": list(stats["group"].keys()),
+        "lang_codes": list(stats["langCode"].keys()),
+        "country_codes": list(stats["countryCode"].keys()),
     }
 
 
@@ -70,6 +93,7 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
 async def scrape_page(client: httpx.AsyncClient, params: SearchParams) -> None:
     try:
         result = await search_libsp(client, params)
+        logger.info(f"Found {result.count} records")
         records = [parse_record(item) for item in result.items]
         async with get_db_session() as db_conn:
             await create_records(db_conn, records)
