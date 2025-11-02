@@ -12,9 +12,11 @@ class Config(BaseSettings):
     postgres_user: str
     postgres_password: str
     postgres_db: str
-    concurrency_limit: int = 10
+    concurrency_limit: int = 20
+    max_workers: int = 20
     debug: bool = False
     log_level: str = "INFO"
+
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
