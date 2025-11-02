@@ -64,8 +64,8 @@ async def fetch_search_filters(
 
 
 async def fetch_records_count(client: httpx.AsyncClient, params: SearchParams) -> int:
-    params.count_only = True
-    result = await search_libsp(client, params)
+    count_params = params.copy(count_only=True)
+    result = await search_libsp(client, count_params)
     return result.count
 
 
