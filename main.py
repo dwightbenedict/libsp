@@ -93,10 +93,16 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
 async def scrape_page(client: httpx.AsyncClient, params: SearchParams) -> None:
     try:
         result = await search_libsp(client, params)
+        items = result.items
+
+        if not items:
+            logger.info("No records found.")
+            return
+
         records = [parse_record(item) for item in result.items]
         async with get_db_session() as db_conn:
             await create_records(db_conn, records)
-            logger.info(f"Added {len(records)} records to the database.")
+        logger.info(f"Added {len(records)} records to the database.")
     except Exception as e:
         logger.exception(f"Failed to scrape {params.page=} for {params.institution_abbrv}: {e}")
 
@@ -136,26 +142,26 @@ async def main() -> None:
         start_year = 1850
         end_year = 2025
 
-        with tqdm(total=max_pages, desc=f"Scraping {institution.abbrv}", file=sys.stderr) as pbar:
+        with tqdm(desc=f"Scraping {institution.abbrv}", file=sys.stderr) as pbar:
             async with TaskPool(config.concurrency_limit, progress_callback=pbar.update) as pool:
                 for filter_key, filter_values in filters.items():
                     for filter_value in filter_values:
-                        for year in range(start_year, end_year + 1):
-                            base_params = SearchParams(
-                                institution_abbrv=institution.abbrv,
-                                institution_id=institution.id,
-                                rows=max_rows,
-                                match_all=True,
-                            )
-                            setattr(base_params, filter_key, [filter_value])
-                            base_params.from_year = year
-                            base_params.to_year = year + 1
+                        base_params = SearchParams(
+                            institution_abbrv=institution.abbrv,
+                            institution_id=institution.id,
+                            rows=max_rows,
+                            match_all=True,
+                        )
+                        setattr(base_params, filter_key, [filter_value])
 
-                            total_records = await fetch_records_count(client, base_params)
-                            total_pages = max(1, min(max_pages, math.ceil(total_records / max_rows)))
+                        total_records = await fetch_records_count(client, base_params)
+                        total_pages = max(1, min(max_pages, math.ceil(total_records / max_rows)))
 
-                            # if more than 10k records, refine using sorting
-                            if total_records > max_records:
+                        # if more than 10k records, refine using sorting
+                        if total_records > max_records:
+                            for pub_year in range(start_year, end_year + 1):
+                                base_params.from_year = pub_year
+                                base_params.to_year = pub_year
                                 for sort_field, sort_clause in sorting_pairs:
                                     count_params = base_params.copy(
                                         sort_field=sort_field,
@@ -168,10 +174,10 @@ async def main() -> None:
                                             page=page,
                                         )
                                         await pool.submit(scrape_page, client, page_params)
-                            else:
-                                for page in range(1, total_pages + 1):
-                                    page_params = base_params.copy(page=page)
-                                    await pool.submit(scrape_page, client, page_params)
+                        else:
+                            for page in range(1, total_pages + 1):
+                                page_params = base_params.copy(page=page)
+                                await pool.submit(scrape_page, client, page_params)
 
                 await pool.join()
 
