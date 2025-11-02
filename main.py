@@ -23,6 +23,9 @@ from chaoxing.core.logging import setup_logging
 
 LOG_FILE = Path("logs/chaoxing.log")
 setup_logging(log_level=config.log_level, log_file=LOG_FILE)
+
+logging.getLogger("httpx").setLevel(logging.ERROR)
+
 logger = logging.getLogger("chaoxing")
 
 
@@ -170,13 +173,25 @@ async def main() -> None:
                                     total_records = await fetch_records_count(client, count_params)
                                     total_pages = max(1, min(max_pages, math.ceil(total_records / max_rows)))
                                     for page in range(1, total_pages + 1):
-                                        page_params = count_params.copy(
-                                            page=page,
+                                        page_params = count_params.copy(page=page)
+                                        logger.info(
+                                            f"Scraping {institution.abbrv} | "
+                                            f"{filter_key}={filter_value} | "
+                                            f"year={pub_year} | "
+                                            f"{sort_field}={sort_clause} | "
+                                            f"page={page}/{total_pages} | "
+                                            f"records={total_records}"
                                         )
                                         await pool.submit(scrape_page, client, page_params)
                         else:
                             for page in range(1, total_pages + 1):
                                 page_params = base_params.copy(page=page)
+                                logger.info(
+                                    f"Scraping {institution.abbrv} | "
+                                    f"{filter_key}={filter_value} | "
+                                    f"page={page}/{total_pages} | "
+                                    f"records={total_records}"
+                                )
                                 await pool.submit(scrape_page, client, page_params)
 
                 await pool.join()
