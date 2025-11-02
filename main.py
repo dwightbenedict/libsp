@@ -93,10 +93,10 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
 async def scrape_page(client: httpx.AsyncClient, params: SearchParams) -> None:
     try:
         result = await search_libsp(client, params)
-        logger.info(f"Found {result.count} records")
         records = [parse_record(item) for item in result.items]
         async with get_db_session() as db_conn:
             await create_records(db_conn, records)
+            logger.info(f"Added {len(records)} records to the database.")
     except Exception as e:
         logger.exception(f"Failed to scrape {params.page=} for {params.institution_abbrv}: {e}")
 
