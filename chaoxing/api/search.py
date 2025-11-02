@@ -84,7 +84,7 @@ async def search_libsp(client: httpx.AsyncClient, params: SearchParams) -> Searc
         "langCode": params.lang_codes,
         "countryCode": params.country_codes,
         "group": params.groups,
-        "newCoreInclude": params.core_include,
+        "newCoreInclude": params.core_includes,
     }
     response = await client.post(url, headers=headers, json=payload)
     response.raise_for_status()
