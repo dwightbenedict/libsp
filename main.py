@@ -47,7 +47,7 @@ async def fetch_search_filters(
         "authors": list(stats["author"].keys()),
         "publishers": list(stats["publisher"].keys()),
         "discodes": list(stats["discode1"].keys()),
-        "lib_codes": list(stats["libcode"].keys()),
+        "lib_codes": list(stats["libCode"].keys()),
         "ecollection_ids": list(stats["neweCollectionIds"].keys()),
         "core_includes": list(stats["coreIncludes"].keys()),
         "location_ids": list(stats["locationId"].keys()),
