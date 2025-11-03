@@ -52,7 +52,12 @@ async def fetch_records_count(client: httpx.AsyncClient, params: SearchParams) -
     return result.count
 
 
-def parse_record(item: dict[str, Any]) -> RecordCreate:
+def parse_record(item: dict[str, Any]) -> RecordCreate | None:
+    title = item["title"]
+
+    if title is None:
+        return None
+
     isbns = item.get("isbns")
     tags = item.get("chiSubjectClass")
     return RecordCreate(
@@ -83,7 +88,7 @@ async def scrape_page(
         result = await search_libsp(client, params)
         if not result.items:
             return
-        records = [parse_record(item) for item in result.items]
+        records = [record for item in result.items if (record := parse_record(item)) is not None]
         async with get_db_session(db_factory) as db:
             await create_records(db, records)
         logger.info(f"Added {len(records)} records to DB.")
