@@ -70,6 +70,10 @@ async def scrape_page(
         logger.exception(f"Failed to scrape {params.page=} for {params.institution_abbrv}: {e}")
 
 
+def compute_total_pages(records_count: int, max_rows: int, max_pages: int) -> int:
+    return min(max_pages, math.ceil(records_count / max_rows))
+
+
 async def scrape_institution(institution_hostname: str, db_url: str) -> None:
     db_factory = create_session_factory(db_url)
     limits = httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=30.0)
@@ -121,7 +125,7 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
 
                         # base case — small enough, scrape directly
                         if total <= max_records:
-                            total_pages = min(max_pages, math.ceil(total / max_rows))
+                            total_pages = compute_total_pages(total, max_rows, max_pages)
                             for page in range(1, total_pages + 1):
                                 await pool.submit(scrape_page, client, base.copy(page=page), db_factory)
                             continue
@@ -135,7 +139,7 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
 
                             # if small enough now → scrape directly
                             if count_year <= max_records:
-                                pages = min(max_pages, math.ceil(count_year / max_rows))
+                                pages = compute_total_pages(count_year, max_rows, max_pages)
                                 for page in range(1, pages + 1):
                                     await pool.submit(scrape_page, client, year_params.copy(page=page), db_factory)
                                 continue
@@ -149,7 +153,7 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
 
                                 # if small enough after sort_field → scrape
                                 if count_field <= max_records:
-                                    pages = min(max_pages, math.ceil(count_field / max_rows))
+                                    pages = compute_total_pages(count_field, max_rows, max_pages)
                                     for page in range(1, pages + 1):
                                         await pool.submit(
                                             scrape_page, client, field_params.copy(page=page), db_factory
@@ -162,7 +166,7 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
                                     count_clause = await fetch_records_count(client, clause_params)
                                     if count_clause == 0:
                                         continue
-                                    pages = min(max_pages, math.ceil(count_clause / max_rows))
+                                    pages = compute_total_pages(count_clause, max_rows, max_pages)
                                     for page in range(1, pages + 1):
                                         await pool.submit(
                                             scrape_page, client, clause_params.copy(page=page), db_factory
