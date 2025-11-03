@@ -13,6 +13,7 @@ from chaoxing.core.config import config
 from chaoxing.api.institution import fetch_institution
 from chaoxing.api.search import SearchParams, search_libsp
 from chaoxing.models.institution_model import InstitutionCreate
+from chaoxing.models.search_model import SearchStats
 from chaoxing.models.record_model import RecordCreate
 from chaoxing.db.session import create_session_factory, get_db_session
 from chaoxing.services.institution_service import get_institution, create_institution
@@ -42,25 +43,8 @@ async def fetch_search_filters(
     if not stats:
         return None
 
-    return {
-        "doc_codes": list(stats["docCode"].keys()),
-        "resource_types": list(stats["resourceType"].keys()),
-        "lit_codes": list(stats["litCode"].keys()),
-        "subjects": list(stats["subject"].keys()),
-        "authors": list(stats["author"].keys()),
-        "publishers": list(stats["publisher"].keys()),
-        "discodes": list(stats["discode1"].keys()),
-        "lib_codes": list(stats["libCode"].keys()),
-        "ecollection_ids": list(stats["neweCollectionIds"].keys()),
-        "core_includes": list(stats["coreIncludes"].keys()),
-        "location_ids": list(stats["locationId"].keys()),
-        "current_location_ids": list(stats["curLocationId"].keys()),
-        "campus_ids": list(stats["campusId"].keys()),
-        "kind_no": list(stats["kindNo"].keys()),
-        "groups": list(stats["group"].keys()),
-        "lang_codes": list(stats["langCode"].keys()),
-        "country_codes": list(stats["countryCode"].keys()),
-    }
+    search_stats = SearchStats.model_validate(stats)
+    return search_stats.to_filter_dict()
 
 
 async def fetch_records_count(client: httpx.AsyncClient, params: SearchParams) -> int:
