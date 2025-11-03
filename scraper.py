@@ -26,6 +26,40 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 logger = logging.getLogger("chaoxing")
 
 
+async def fetch_search_filters(
+    client: httpx.AsyncClient,
+    institution_id: int,
+    institution_abbrv: str
+) -> dict[str, list[str]]:
+    params = SearchParams(
+        institution_abbrv=institution_abbrv,
+        institution_id=institution_id,
+        count_only=True,
+    )
+    result = await search_libsp(client, params)
+    stats = result.stats
+
+    return {
+        "doc_codes": list(stats["docCode"].keys()),
+        "resource_types": list(stats["resourceType"].keys()),
+        "lit_codes": list(stats["litCode"].keys()),
+        "subjects": list(stats["subject"].keys()),
+        "authors": list(stats["author"].keys()),
+        "publishers": list(stats["publisher"].keys()),
+        "discodes": list(stats["discode1"].keys()),
+        "lib_codes": list(stats["libCode"].keys()),
+        "ecollection_ids": list(stats["neweCollectionIds"].keys()),
+        "core_includes": list(stats["coreIncludes"].keys()),
+        "location_ids": list(stats["locationId"].keys()),
+        "current_location_ids": list(stats["curLocationId"].keys()),
+        "campus_ids": list(stats["campusId"].keys()),
+        "kind_no": list(stats["kindNo"].keys()),
+        "groups": list(stats["group"].keys()),
+        "lang_codes": list(stats["langCode"].keys()),
+        "country_codes": list(stats["countryCode"].keys()),
+    }
+
+
 async def fetch_records_count(client: httpx.AsyncClient, params: SearchParams) -> int:
     result = await search_libsp(client, params.copy(count_only=True))
     return result.count
@@ -98,7 +132,7 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
                 ),
             )
 
-        filters = await fetch_institution(client, institution_hostname)
+        filters = await fetch_search_filters(client, institution.id, institution.abbrv)
 
         sort_fields = ["relevance", "issued_sort", "class_no_sort_s"]
         sort_clauses = ["asc", "desc"]
