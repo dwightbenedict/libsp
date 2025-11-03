@@ -2,7 +2,6 @@ import sys
 import math
 import logging
 from pathlib import Path
-from itertools import product
 from typing import Any
 
 import httpx
@@ -23,49 +22,12 @@ from chaoxing.core.logging import setup_logging
 
 LOG_FILE = Path("logs/chaoxing.log")
 setup_logging(log_level=config.log_level, log_file=LOG_FILE)
-
 logging.getLogger("httpx").setLevel(logging.ERROR)
-
 logger = logging.getLogger("chaoxing")
 
 
-async def fetch_search_filters(
-    client: httpx.AsyncClient,
-    institution_id: int,
-    institution_abbrv: str
-) -> dict[str, list[str]]:
-    params = SearchParams(
-        institution_abbrv=institution_abbrv,
-        institution_id=institution_id,
-        count_only=True,
-    )
-    result = await search_libsp(client, params)
-    stats = result.stats
-
-    return {
-        "doc_codes": list(stats["docCode"].keys()),
-        "resource_types": list(stats["resourceType"].keys()),
-        "lit_codes": list(stats["litCode"].keys()),
-        "subjects": list(stats["subject"].keys()),
-        "authors": list(stats["author"].keys()),
-        "publishers": list(stats["publisher"].keys()),
-        "discodes": list(stats["discode1"].keys()),
-        "lib_codes": list(stats["libCode"].keys()),
-        "ecollection_ids": list(stats["neweCollectionIds"].keys()),
-        "core_includes": list(stats["coreIncludes"].keys()),
-        "location_ids": list(stats["locationId"].keys()),
-        "current_location_ids": list(stats["curLocationId"].keys()),
-        "campus_ids": list(stats["campusId"].keys()),
-        "kind_no": list(stats["kindNo"].keys()),
-        "groups": list(stats["group"].keys()),
-        "lang_codes": list(stats["langCode"].keys()),
-        "country_codes": list(stats["countryCode"].keys()),
-    }
-
-
 async def fetch_records_count(client: httpx.AsyncClient, params: SearchParams) -> int:
-    count_params = params.copy(count_only=True)
-    result = await search_libsp(client, count_params)
+    result = await search_libsp(client, params.copy(count_only=True))
     return result.count
 
 
@@ -94,114 +56,120 @@ def parse_record(item: dict[str, Any]) -> RecordCreate:
 
 
 async def scrape_page(
-        client: httpx.AsyncClient, params: SearchParams, db_session_factory: async_sessionmaker[AsyncSession]
+    client: httpx.AsyncClient, params: SearchParams, db_factory: async_sessionmaker[AsyncSession]
 ) -> None:
     try:
         result = await search_libsp(client, params)
-        items = result.items
-
-        if not items:
-            logger.info("No records found.")
+        if not result.items:
             return
-
         records = [parse_record(item) for item in result.items]
-        async with get_db_session(db_session_factory) as db_conn:
-            await create_records(db_conn, records)
-        logger.info(f"Added {len(records)} records to the database.")
+        async with get_db_session(db_factory) as db:
+            await create_records(db, records)
+        logger.info(f"Added {len(records)} records to DB.")
     except Exception as e:
         logger.exception(f"Failed to scrape {params.page=} for {params.institution_abbrv}: {e}")
 
 
 async def scrape_institution(institution_hostname: str, db_url: str) -> None:
-    db_session_factory = create_session_factory(db_url)
-
+    db_factory = create_session_factory(db_url)
     limits = httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=30.0)
     timeout = httpx.Timeout(15.0, read=30.0, write=15.0, pool=10.0)
 
     async with (
         httpx.AsyncClient(http2=True, limits=limits, timeout=timeout) as client,
-        get_db_session(db_session_factory) as db_session,
+        get_db_session(db_factory) as db,
     ):
         institution = await fetch_institution(client, institution_hostname)
 
-        existing = await get_institution(db_session, institution.id)
+        existing = await get_institution(db, institution.id)
         if existing is None:
-            data = InstitutionCreate(
-                id=institution.id,
-                abbrv=institution.abbrv,
-                name=institution.name,
-                doc_codes=", ".join(institution.doc_codes),
-                resource_types=", ".join(institution.resource_types),
+            await create_institution(
+                db,
+                InstitutionCreate(
+                    id=institution.id,
+                    abbrv=institution.abbrv,
+                    name=institution.name,
+                    doc_codes=", ".join(institution.doc_codes),
+                    resource_types=", ".join(institution.resource_types),
+                ),
             )
-            await create_institution(db_session, data)
 
-        filters = await fetch_search_filters(client, institution.id, institution.abbrv)
+        filters = await fetch_institution(client, institution_hostname)
 
         sort_fields = ["relevance", "issued_sort", "class_no_sort_s"]
         sort_clauses = ["asc", "desc"]
-        sorting_pairs = list(product(sort_fields, sort_clauses))
-
         max_rows = 50
         max_pages = 200
         max_records = 10_000
-        start_year = 1850
-        end_year = 2025
+        start_year, end_year = 1850, 2025
 
         with tqdm(desc=f"Scraping {institution.abbrv}", file=sys.stderr) as pbar:
             async with TaskPool(config.concurrency_limit, progress_callback=pbar.update) as pool:
                 for filter_key, filter_values in filters.items():
                     for filter_value in filter_values:
-                        base_params = SearchParams(
+                        base = SearchParams(
                             institution_abbrv=institution.abbrv,
                             institution_id=institution.id,
                             rows=max_rows,
                             match_all=True,
                         )
-                        setattr(base_params, filter_key, [filter_value])
+                        setattr(base, filter_key, [filter_value])
 
-                        total_records = await fetch_records_count(client, base_params)
-                        total_pages = max(1, min(max_pages, math.ceil(total_records / max_rows)))
+                        total = await fetch_records_count(client, base)
+                        if total == 0:
+                            continue
 
-                        # if more than 10k records, refine using sorting
-                        if total_records > max_records:
-                            for pub_year in range(start_year, end_year + 1):
-                                for sort_field, sort_clause in sorting_pairs:
-                                    subtotal_params = base_params.copy(
-                                        from_year=pub_year,
-                                        to_year=pub_year,
-                                        sort_field=sort_field,
-                                        sort_clause=sort_clause,
-                                    )
-                                    subtotal_records = await fetch_records_count(client, subtotal_params)
-                                    subtotal_pages = max(
-                                        1, min(max_pages, math.ceil(subtotal_records / max_rows))
-                                    )
-                                    for page in range(1, subtotal_pages + 1):
-                                        page_params = subtotal_params.copy(page=page)
-                                        logger.info(
-                                            f"Scraping {institution.abbrv} | "
-                                            f"{filter_key}={filter_value} | "
-                                            f"year={pub_year} | "
-                                            f"{sort_field}={sort_clause} | "
-                                            f"page={page}/{total_pages} | "
-                                            f"subtotal={subtotal_records:,} | "
-                                            f"total={total_records:,}"
-                                        )
-                                        await pool.submit(scrape_page, client, page_params, db_session_factory)
-                        else:
+                        # base case — small enough, scrape directly
+                        if total <= max_records:
+                            total_pages = min(max_pages, math.ceil(total / max_rows))
                             for page in range(1, total_pages + 1):
-                                page_params = base_params.copy(page=page)
-                                logger.info(
-                                    f"Scraping {institution.abbrv} | "
-                                    f"{filter_key}={filter_value} | "
-                                    f"page={page}/{total_pages} | "
-                                    f"total={total_records}"
-                                )
-                                await pool.submit(scrape_page, client, page_params, db_session_factory)
+                                await pool.submit(scrape_page, client, base.copy(page=page), db_factory)
+                            continue
+
+                        # refine by year
+                        for year in range(start_year, end_year + 1):
+                            year_params = base.copy(from_year=year, to_year=year)
+                            count_year = await fetch_records_count(client, year_params)
+                            if count_year == 0:
+                                continue
+
+                            # if small enough now → scrape directly
+                            if count_year <= max_records:
+                                pages = min(max_pages, math.ceil(count_year / max_rows))
+                                for page in range(1, pages + 1):
+                                    await pool.submit(scrape_page, client, year_params.copy(page=page), db_factory)
+                                continue
+
+                            # refine by sort_field
+                            for sort_field in sort_fields:
+                                field_params = year_params.copy(sort_field=sort_field)
+                                count_field = await fetch_records_count(client, field_params)
+                                if count_field == 0:
+                                    continue
+
+                                # if small enough after sort_field → scrape
+                                if count_field <= max_records:
+                                    pages = min(max_pages, math.ceil(count_field / max_rows))
+                                    for page in range(1, pages + 1):
+                                        await pool.submit(
+                                            scrape_page, client, field_params.copy(page=page), db_factory
+                                        )
+                                    continue
+
+                                # still too large → refine by sort_clause
+                                for sort_clause in sort_clauses:
+                                    clause_params = field_params.copy(sort_clause=sort_clause)
+                                    count_clause = await fetch_records_count(client, clause_params)
+                                    if count_clause == 0:
+                                        continue
+                                    pages = min(max_pages, math.ceil(count_clause / max_rows))
+                                    for page in range(1, pages + 1):
+                                        await pool.submit(
+                                            scrape_page, client, clause_params.copy(page=page), db_factory
+                                        )
 
                 await pool.join()
 
         logger.info(f"Scrape completed for {institution.abbrv}")
-        engine = db_session_factory.kw["bind"]
+        engine = db_factory.kw["bind"]
         await engine.dispose()
-
