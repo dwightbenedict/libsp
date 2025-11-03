@@ -30,7 +30,7 @@ async def fetch_search_filters(
     client: httpx.AsyncClient,
     institution_id: int,
     institution_abbrv: str
-) -> dict[str, list[str]]:
+) -> dict[str, list[str]] | None:
     params = SearchParams(
         institution_abbrv=institution_abbrv,
         institution_id=institution_id,
@@ -38,6 +38,9 @@ async def fetch_search_filters(
     )
     result = await search_libsp(client, params)
     stats = result.stats
+
+    if not stats:
+        return None
 
     return {
         "doc_codes": list(stats["docCode"].keys()),
