@@ -167,7 +167,6 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
                                         await pool.submit(
                                             scrape_page, client, clause_params.copy(page=page), db_factory
                                         )
-
                 await pool.join()
 
         logger.info(f"Scrape completed for {institution.abbrv}")
