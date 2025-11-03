@@ -165,24 +165,27 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
                         # if more than 10k records, refine using sorting
                         if total_records > max_records:
                             for pub_year in range(start_year, end_year + 1):
-                                base_params.from_year = pub_year
-                                base_params.to_year = pub_year
                                 for sort_field, sort_clause in sorting_pairs:
-                                    count_params = base_params.copy(
+                                    subtotal_params = base_params.copy(
+                                        from_year=pub_year,
+                                        to_year=pub_year,
                                         sort_field=sort_field,
                                         sort_clause=sort_clause,
                                     )
-                                    total_records = await fetch_records_count(client, count_params)
-                                    total_pages = max(1, min(max_pages, math.ceil(total_records / max_rows)))
-                                    for page in range(1, total_pages + 1):
-                                        page_params = count_params.copy(page=page)
+                                    subtotal_records = await fetch_records_count(client, subtotal_params)
+                                    subtotal_pages = max(
+                                        1, min(max_pages, math.ceil(subtotal_records / max_rows))
+                                    )
+                                    for page in range(1, subtotal_pages + 1):
+                                        page_params = subtotal_params.copy(page=page)
                                         logger.info(
                                             f"Scraping {institution.abbrv} | "
                                             f"{filter_key}={filter_value} | "
                                             f"year={pub_year} | "
                                             f"{sort_field}={sort_clause} | "
                                             f"page={page}/{total_pages} | "
-                                            f"records={total_records}"
+                                            f"subtotal={subtotal_records:,} | "
+                                            f"total={total_records:,}"
                                         )
                                         await pool.submit(scrape_page, client, page_params, db_session_factory)
                         else:
@@ -192,7 +195,7 @@ async def scrape_institution(institution_hostname: str, db_url: str) -> None:
                                     f"Scraping {institution.abbrv} | "
                                     f"{filter_key}={filter_value} | "
                                     f"page={page}/{total_pages} | "
-                                    f"records={total_records}"
+                                    f"total={total_records}"
                                 )
                                 await pool.submit(scrape_page, client, page_params, db_session_factory)
 
