@@ -12,6 +12,8 @@ class Config(BaseSettings):
     postgres_user: str
     postgres_password: str
     postgres_db: str
+    db_pool_size: int
+    db_max_overflow: int
     concurrency_limit: int = 20
     max_workers: int = 20
     debug: bool = False
