@@ -10,7 +10,7 @@ def create_session_factory(db_url: str) -> async_sessionmaker[AsyncSession]:
     engine: AsyncEngine = create_async_engine(
         db_url,
         pool_size=config.db_pool_size,
-        max_overflow=config.max_overflow,
+        max_overflow=config.db_max_overflow,
         echo=config.debug,
     )
     return async_sessionmaker(engine, expire_on_commit=False)
