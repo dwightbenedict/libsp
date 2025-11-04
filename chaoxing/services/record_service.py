@@ -5,14 +5,16 @@ from chaoxing.models.record_model import RecordCreate
 from chaoxing.db.schema import Record
 
 
-async def create_records(session: AsyncSession, records: list[RecordCreate]) -> None:
+async def create_records(session: AsyncSession, records: list[RecordCreate]) -> int:
     """Insert multiple records in bulk for improved performance."""
 
     if not records:
-        return
+        return 0
 
     values = [record.model_dump() for record in records]
     stmt = insert(Record).values(values)
     stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
-    await session.execute(stmt)
+    result = await session.execute(stmt)
     await session.commit()
+    inserted_count = len(result.scalars().all())
+    return inserted_count

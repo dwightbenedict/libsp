@@ -90,8 +90,8 @@ async def scrape_page(
             return
         records = [record for item in result.items if (record := parse_record(item)) is not None]
         async with get_db_session(db_factory) as db:
-            await create_records(db, records)
-        logger.info(f"Added {len(records)} records to DB.")
+            num_inserted = await create_records(db, records)
+        logger.info(f"Added {num_inserted} records to DB.")
     except Exception as e:
         logger.exception(f"Failed to scrape {params.page=} for {params.institution_abbrv}: {e}")
 
