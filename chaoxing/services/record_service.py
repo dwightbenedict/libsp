@@ -12,9 +12,14 @@ async def create_records(session: AsyncSession, records: list[RecordCreate]) -> 
         return 0
 
     values = [record.model_dump() for record in records]
-    stmt = insert(Record).values(values)
-    stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
+    stmt = (
+        insert(Record)
+        .values(values)
+        .on_conflict_do_nothing(index_elements=["id"])
+        .returning(Record.id)
+    )
+
     result = await session.execute(stmt)
+    inserted = result.scalars().all()
     await session.commit()
-    inserted_count = len(result.scalars().all())
-    return inserted_count
+    return len(inserted)
