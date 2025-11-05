@@ -11,9 +11,9 @@ def scraper_process(institution_hostname: str, db_url: str) -> None:
     asyncio.run(scraper.scrape_institution(institution_hostname, db_url))
 
 
-def read_institution_hostnames(file_path: Path) -> list[str]:
+def read_institution_hostnames(file_path: Path) -> set[str]:
     with file_path.open("r", encoding="utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
+        return {line.strip() for line in f if line.strip()}
 
 
 def main() -> None:
